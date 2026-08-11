@@ -1,0 +1,138 @@
+/**
+ * End-to-end smoke test for the Smart QR Billing API.
+ *
+ * Run the server first (npm run dev), then in another terminal:
+ *   node scripts/smoke-test.js
+ *
+ * It walks through the real flow a shop owner would use - register, create
+ * a product, "scan" it by looking it up by code, bill it, and confirm stock
+ * actually dropped - all against your live MongoDB. No mocking.
+ */
+
+const BASE = process.env.SMOKE_BASE_URL || 'http://localhost:5000/api';
+
+let pass = 0;
+let fail = 0;
+
+function check(label, condition, detail = '') {
+  if (condition) {
+    console.log(`  \x1b[32m\u2713\x1b[0m ${label}`);
+    pass++;
+  } else {
+    console.log(`  \x1b[31m\u2717\x1b[0m ${label} ${detail ? '- ' + detail : ''}`);
+    fail++;
+  }
+}
+
+async function req(method, path, body, token) {
+  const res = await fetch(`${BASE}${path}`, {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  let json = null;
+  try {
+    json = await res.json();
+  } catch {
+    /* non-JSON response, e.g. a PDF stream */
+  }
+  return { status: res.status, ok: res.ok, body: json, raw: res };
+}
+
+async function main() {
+  console.log(`\nRunning smoke test against ${BASE}\n`);
+
+  // 1. health check
+  const health = await req('GET', '/health');
+  check('API is reachable', health.status === 200, `got status ${health.status}`);
+  if (health.status !== 200) {
+    console.log('\nServer not reachable - is `npm run dev` running in another terminal?\n');
+    process.exit(1);
+  }
+
+  // 2. register a throwaway shop account
+  const email = `smoke-${Date.now()}@example.com`;
+  const reg = await req('POST', '/auth/register', {
+    name: 'Smoke Test',
+    shopName: 'Smoke Test Store',
+    email,
+    password: 'password123',
+  });
+  check('Register creates an account and returns a token', reg.status === 201 && !!reg.body?.token, JSON.stringify(reg.body));
+  const token = reg.body?.token;
+
+  // 3. login with the same credentials
+  const login = await req('POST', '/auth/login', { email, password: 'password123' });
+  check('Login works with those credentials', login.status === 200 && !!login.body?.token, JSON.stringify(login.body));
+
+  // 4. create a product -> should get back a productId and a QR data URL
+  const create = await req(
+    'POST',
+    '/products',
+    { name: 'Smoke Test Cola 500ml', price: 40, stock: 10, gst: 5 },
+    token
+  );
+  check('Create product returns a productId', /^PRD-/.test(create.body?.product?.productId || ''), JSON.stringify(create.body));
+  check('Create product returns a QR data URL', (create.body?.product?.qrDataUrl || '').startsWith('data:image/png'));
+  const product = create.body?.product;
+
+  // 5. "scan" it - look it up purely by the code the QR encodes
+  const scanned = await req('GET', `/products/by-code/${product.productId}`, null, token);
+  check('Scanning by product code returns the same product', scanned.body?.product?.name === product.name);
+
+  // 6. edit the price - QR/productId must not change
+  const edited = await req('PUT', `/products/${product._id}`, { price: 55 }, token);
+  check('Editing price does not change the productId', edited.body?.product?.productId === product.productId);
+  check('Editing price actually updates it', edited.body?.product?.price === 55);
+
+  // 7. try to oversell - should be rejected and stock left untouched
+  const oversell = await req('POST', '/sales', { items: [{ productId: product.productId, quantity: 999 }] }, token);
+  check('Overselling past available stock is rejected', oversell.status === 409, JSON.stringify(oversell.body));
+
+  // 8. complete a real bill for 3 units at the updated price
+  const sale = await req('POST', '/sales', { items: [{ productId: product.productId, quantity: 3 }] }, token);
+  check('Completing a valid bill succeeds', sale.status === 201, JSON.stringify(sale.body));
+  check('Bill snapshots the price at time of sale (55, not the original 40)', sale.body?.sale?.items?.[0]?.priceAtSale === 55);
+  check('Bill total reflects GST', sale.body?.sale?.total === Number((55 * 3 * 1.05).toFixed(2)), `got ${sale.body?.sale?.total}`);
+
+  // 9. stock should have actually dropped by 3, from 10 to 7
+  const afterSale = await req('GET', `/products/${product._id}`, null, token);
+  check('Stock decreased by exactly the quantity sold (10 -> 7)', afterSale.body?.product?.stock === 7, `got ${afterSale.body?.product?.stock}`);
+
+  // 10. dashboard should reflect today's revenue
+  const dash = await req('GET', '/dashboard', null, token);
+  check('Dashboard shows today\'s revenue > 0 after the sale', (dash.body?.today?.revenue || 0) > 0, JSON.stringify(dash.body?.today));
+
+  // 11. old sale record must keep the price charged even after another price edit
+  await req('PUT', `/products/${product._id}`, { price: 999 }, token);
+  const saleAfterAnotherEdit = await req('GET', `/sales/${sale.body.sale._id}`, null, token);
+  check(
+    'Historical invoice keeps the original sale price even after another price change',
+    saleAfterAnotherEdit.body?.sale?.items?.[0]?.priceAtSale === 55
+  );
+
+  // 12. invoice PDF actually generates
+  const invoicePdf = await req('GET', `/sales/${sale.body.sale._id}/invoice-pdf`, null, token);
+  check('Invoice PDF endpoint responds with a PDF', invoicePdf.raw.headers.get('content-type') === 'application/pdf');
+
+  // 13. QR label sheet PDF actually generates
+  const qrPdf = await req('GET', `/products/${product._id}/qr-pdf?copies=5`, null, token);
+  check('QR label sheet PDF endpoint responds with a PDF', qrPdf.raw.headers.get('content-type') === 'application/pdf');
+
+  // 14. a second, unrelated account must never see this product
+  const otherEmail = `smoke-b-${Date.now()}@example.com`;
+  const otherReg = await req('POST', '/auth/register', { name: 'Other Shop', email: otherEmail, password: 'password123' });
+  const otherLookup = await req('GET', `/products/by-code/${product.productId}`, null, otherReg.body?.token);
+  check('A different user cannot see this product (data isolation)', otherLookup.status === 404);
+
+  console.log(`\n${pass} passed, ${fail} failed\n`);
+  process.exit(fail > 0 ? 1 : 0);
+}
+
+main().catch((err) => {
+  console.error('\nSmoke test crashed:', err.message);
+  process.exit(1);
+});

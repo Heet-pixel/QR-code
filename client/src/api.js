@@ -24,12 +24,39 @@ api.interceptors.response.use(
 export default api;
 
 // PDF endpoints require a Bearer token, which a plain window.open()/<a href>
-// can't send. This fetches the file through axios (so the auth header goes
-// along), then hands the browser a blob URL to open in a new tab.
-export async function openPdf(path) {
-  const res = await api.get(path, { responseType: 'blob' });
-  const blobUrl = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
-  window.open(blobUrl, '_blank');
-  // give the new tab a moment to load it before we release the memory
-  setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
+// can't send - so this fetches the file through axios (auth header goes
+// along automatically) and triggers a real file download. Deliberately NOT
+// using window.open(): browsers frequently block a popup opened after an
+// awaited request, which silently breaks the download with no visible error.
+export async function openPdf(path, filename = 'document.pdf') {
+  try {
+    const res = await api.get(path, { responseType: 'blob' });
+    const blob = new Blob([res.data], { type: 'application/pdf' });
+    const blobUrl = URL.createObjectURL(blob);
+
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
+  } catch (err) {
+    // responseType: 'blob' means axios can't auto-parse a JSON error body -
+    // it comes back as a Blob even on a 401/404/500, so unwrap it by hand.
+    let message = 'Could not download the PDF. Please try again.';
+    if (err.response?.data instanceof Blob) {
+      try {
+        const text = await err.response.data.text();
+        const parsed = JSON.parse(text);
+        if (parsed?.message) message = parsed.message;
+      } catch {
+        /* error body wasn't JSON - fall back to the generic message */
+      }
+    } else if (err.response?.data?.message) {
+      message = err.response.data.message;
+    }
+    alert(message);
+    throw err;
+  }
 }

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Search, Plus, ChevronRight } from 'lucide-react';
 import api from '../api';
 
 function stockBadge(product) {
@@ -27,15 +28,9 @@ export default function Products() {
   }, [search]);
 
   return (
-    <div>
-      <div className="topbar">
-        <h1>Products</h1>
-        <Link to="/create" className="btn btn-primary">
-          + New product
-        </Link>
-      </div>
-
-      <div className="field" style={{ maxWidth: 320 }}>
+    <div className="page-with-fab">
+      <div className="search-bar">
+        <Search size={17} strokeWidth={2} />
         <input placeholder="Search by name, SKU or product ID" value={search} onChange={(e) => setSearch(e.target.value)} />
       </div>
 
@@ -49,19 +44,26 @@ export default function Products() {
         </div>
       )}
 
-      <div className="grid product-grid">
+      <div className="row-list">
         {products?.map((p) => (
-          <Link key={p._id} to={`/products/${p._id}`} className="product-card" style={{ textDecoration: 'none', color: 'inherit' }}>
-            <img src={p.qrDataUrl} alt="" width={56} height={56} style={{ alignSelf: 'flex-start' }} />
-            <div className="name">{p.name}</div>
-            <div className="meta mono">{p.productId}</div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span className="price">&#8377;{p.price}</span>
+          <Link key={p._id} to={`/products/${p._id}`} className="row-item">
+            <img className="row-thumb" src={p.qrDataUrl} alt="" width={44} height={44} />
+            <div className="row-body">
+              <div className="row-title">{p.name}</div>
+              <div className="row-sub mono">{p.productId}</div>
+            </div>
+            <div className="row-end">
+              <div className="row-price">&#8377;{p.price}</div>
               {stockBadge(p)}
             </div>
+            <ChevronRight size={18} className="row-chevron" strokeWidth={2} />
           </Link>
         ))}
       </div>
+
+      <Link to="/create" className="fab" aria-label="Create product">
+        <Plus size={24} strokeWidth={2.4} />
+      </Link>
     </div>
   );
 }

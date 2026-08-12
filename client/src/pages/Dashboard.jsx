@@ -38,8 +38,6 @@ export default function Dashboard() {
 
   return (
     <div>
-      <h1 style={{ marginBottom: 18 }}>Dashboard</h1>
-
       <div className="grid stat-grid">
         <div className="stat">
           <div className="label">Total products</div>
@@ -63,7 +61,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="grid" style={{ gridTemplateColumns: '2fr 1fr', alignItems: 'start' }}>
+      <div className="grid dash-split">
         <div className="card">
           <h3 style={{ marginBottom: 14 }}>Revenue, last 7 days</h3>
           {data.dailyRevenue.length ? (
@@ -86,30 +84,20 @@ export default function Dashboard() {
       </div>
 
       {data.lowStockProducts.length > 0 && (
-        <div className="card" style={{ marginTop: 16 }}>
-          <h3 style={{ marginBottom: 14 }}>Running low</h3>
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Product</th>
-                <th>Stock left</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.lowStockProducts.map((p) => (
-                <tr key={p._id}>
-                  <td>{p.name}</td>
-                  <td>
-                    <span className="badge low">{p.stock} left</span>
-                  </td>
-                  <td>
-                    <Link to={`/products/${p._id}`}>Restock &rarr;</Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="card" style={{ marginTop: 16, padding: '8px 0' }}>
+          <h3 style={{ margin: '6px 16px 8px' }}>Running low</h3>
+          <div className="row-list flush">
+            {data.lowStockProducts.map((p) => (
+              <Link key={p._id} to={`/products/${p._id}`} className="row-item">
+                <div className="row-body">
+                  <div className="row-title">{p.name}</div>
+                </div>
+                <div className="row-end">
+                  <span className="badge low">{p.stock} left</span>
+                </div>
+              </Link>
+            ))}
+          </div>
         </div>
       )}
     </div>

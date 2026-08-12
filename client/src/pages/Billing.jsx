@@ -99,26 +99,35 @@ export default function Billing() {
     if (cart.length === 0) return;
     setCompleting(true);
     setError('');
+
+    let sale;
     try {
       const res = await api.post('/sales', {
         items: cart.map((l) => ({ productId: l.product.productId, quantity: l.quantity })),
         customerName,
       });
-      // fetches the PDF with the auth header attached, then opens it in a new tab
-      await openPdf(`/sales/${res.data.sale._id}/invoice-pdf`);
-      setCart([]);
-      setCustomerName('');
-      navigate('/sales');
+      sale = res.data.sale;
     } catch (err) {
       setError(err.response?.data?.message || 'Could not complete the bill');
-    } finally {
       setCompleting(false);
+      return;
     }
+
+    // the sale is already recorded and stock already deducted at this point -
+    // whatever happens with the invoice download below is a separate concern
+    setCart([]);
+    setCustomerName('');
+    setCompleting(false);
+    try {
+      await openPdf(`/sales/${sale._id}/invoice-pdf`, `${sale.invoiceNumber}.pdf`);
+    } catch {
+      // openPdf already showed its own alert describing the download failure
+    }
+    navigate('/sales');
   }
 
   return (
     <div>
-      <h1 style={{ marginBottom: 18 }}>Billing</h1>
       {error && <div className="error-banner">{error}</div>}
 
       <div className="pos-layout">
@@ -181,27 +190,31 @@ export default function Billing() {
                 <input id="customer" value={customerName} onChange={(e) => setCustomerName(e.target.value)} />
               </div>
 
-              <div className="cart-total-row">
-                <span>Subtotal</span>
-                <span>{rupees(subtotal)}</span>
-              </div>
-              {gstTotal > 0 && (
-                <div className="cart-total-row">
-                  <span>GST</span>
-                  <span>{rupees(gstTotal)}</span>
+              <div className="checkout-footer">
+                <div className="checkout-totals">
+                  <div className="cart-total-row">
+                    <span>Subtotal</span>
+                    <span>{rupees(subtotal)}</span>
+                  </div>
+                  {gstTotal > 0 && (
+                    <div className="cart-total-row">
+                      <span>GST</span>
+                      <span>{rupees(gstTotal)}</span>
+                    </div>
+                  )}
+                  <div className="cart-total-row grand">
+                    <span>Total</span>
+                    <span>{rupees(total)}</span>
+                  </div>
                 </div>
-              )}
-              <div className="cart-total-row grand">
-                <span>Total</span>
-                <span>{rupees(total)}</span>
-              </div>
 
-              <button className="btn btn-primary btn-block" onClick={completeBill} disabled={completing} style={{ marginTop: 10 }}>
-                {completing ? 'Completing...' : 'Complete bill'}
-              </button>
-              <button className="btn btn-ghost btn-block" style={{ marginTop: 8 }} onClick={() => setCart([])}>
-                Clear cart
-              </button>
+                <button className="btn btn-primary btn-block" onClick={completeBill} disabled={completing}>
+                  {completing ? 'Completing...' : `Complete bill \u00b7 ${rupees(total)}`}
+                </button>
+                <button className="btn btn-ghost btn-block checkout-clear" onClick={() => setCart([])}>
+                  Clear cart
+                </button>
+              </div>
             </>
           )}
         </div>

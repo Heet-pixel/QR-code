@@ -50,14 +50,13 @@ export default function CreateProduct() {
   }
 
   function downloadPdf() {
-    openPdf(`/products/${created._id}/qr-pdf?copies=${copies}`);
+    openPdf(`/products/${created._id}/qr-pdf?copies=${copies}`, `${created.productId}-labels.pdf`);
   }
 
   if (created) {
     return (
       <div>
-        <h1 style={{ marginBottom: 18 }}>Product created</h1>
-        <div className="card" style={{ maxWidth: 460 }}>
+        <div className="card" style={{ maxWidth: 460, margin: '0 auto' }}>
           <div className="qr-tag" style={{ marginBottom: 20 }}>
             <img src={created.qrDataUrl} alt="QR code" />
             <div className="pid">{created.productId}</div>
@@ -92,23 +91,22 @@ export default function CreateProduct() {
 
   return (
     <div>
-      <h1 style={{ marginBottom: 18 }}>Create QR code</h1>
       {error && <div className="error-banner">{error}</div>}
 
-      <form onSubmit={onSubmit} className="card" style={{ maxWidth: 520 }}>
+      <form onSubmit={onSubmit} className="card" style={{ maxWidth: 520, margin: '0 auto', paddingBottom: 24 }}>
         <div className="field">
           <label htmlFor="name">Product name *</label>
-          <input id="name" required value={form.name} onChange={set('name')} />
+          <input id="name" required value={form.name} onChange={set('name')} autoFocus />
         </div>
 
         <div className="field-row">
           <div className="field">
             <label htmlFor="price">Price</label>
-            <input id="price" type="number" min="0" step="0.01" value={form.price} onChange={set('price')} />
+            <input id="price" type="number" min="0" step="0.01" inputMode="decimal" value={form.price} onChange={set('price')} />
           </div>
           <div className="field">
             <label htmlFor="stock">Stock quantity</label>
-            <input id="stock" type="number" min="0" value={form.stock} onChange={set('stock')} />
+            <input id="stock" type="number" min="0" inputMode="numeric" value={form.stock} onChange={set('stock')} />
           </div>
         </div>
 
@@ -119,7 +117,7 @@ export default function CreateProduct() {
           </div>
           <div className="field">
             <label htmlFor="gst">GST %</label>
-            <input id="gst" type="number" min="0" max="100" value={form.gst} onChange={set('gst')} />
+            <input id="gst" type="number" min="0" max="100" inputMode="numeric" value={form.gst} onChange={set('gst')} />
           </div>
         </div>
 

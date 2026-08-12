@@ -78,6 +78,19 @@ async function main() {
   check('Create product returns a productId', /^PRD-/.test(create.body?.product?.productId || ''), JSON.stringify(create.body));
   check('Create product returns a QR data URL', (create.body?.product?.qrDataUrl || '').startsWith('data:image/png'));
   const product = create.body?.product;
+  check('Initial stock is recorded as Batch 1', product?.batches?.length === 1 && product.batches[0].batchNumber === 1 && product.batches[0].quantity === 10, JSON.stringify(product?.batches));
+
+  // 4b. restock it twice - batch numbers should increment, stock should add up
+  const restock1 = await req('POST', `/products/${product._id}/restock`, { quantity: 1000 }, token);
+  check('First restock becomes Batch 2', restock1.body?.product?.batches?.length === 2 && restock1.body.product.batches[1].batchNumber === 2, JSON.stringify(restock1.body?.product?.batches));
+  check('Stock after restocking 1000 units is 1010', restock1.body?.product?.stock === 1010, `got ${restock1.body?.product?.stock}`);
+
+  const restock2 = await req('POST', `/products/${product._id}/restock`, { quantity: 250 }, token);
+  check('Second restock becomes Batch 3', restock2.body?.product?.batches?.length === 3 && restock2.body.product.batches[2].batchNumber === 3, JSON.stringify(restock2.body?.product?.batches));
+  check('Stock after restocking 250 more units is 1260', restock2.body?.product?.stock === 1260, `got ${restock2.body?.product?.stock}`);
+
+  const badRestock = await req('POST', `/products/${product._id}/restock`, { quantity: 0 }, token);
+  check('Restocking with quantity 0 is rejected', badRestock.status === 400);
 
   // 5. "scan" it - look it up purely by the code the QR encodes
   const scanned = await req('GET', `/products/by-code/${product.productId}`, null, token);
@@ -89,7 +102,7 @@ async function main() {
   check('Editing price actually updates it', edited.body?.product?.price === 55);
 
   // 7. try to oversell - should be rejected and stock left untouched
-  const oversell = await req('POST', '/sales', { items: [{ productId: product.productId, quantity: 999 }] }, token);
+  const oversell = await req('POST', '/sales', { items: [{ productId: product.productId, quantity: 999999 }] }, token);
   check('Overselling past available stock is rejected', oversell.status === 409, JSON.stringify(oversell.body));
 
   // 8. complete a real bill for 3 units at the updated price
@@ -98,9 +111,10 @@ async function main() {
   check('Bill snapshots the price at time of sale (55, not the original 40)', sale.body?.sale?.items?.[0]?.priceAtSale === 55);
   check('Bill total reflects GST', sale.body?.sale?.total === Number((55 * 3 * 1.05).toFixed(2)), `got ${sale.body?.sale?.total}`);
 
-  // 9. stock should have actually dropped by 3, from 10 to 7
+  // 9. stock should have actually dropped by 3, from 1260 to 1257 - restocks above don't touch this math
   const afterSale = await req('GET', `/products/${product._id}`, null, token);
-  check('Stock decreased by exactly the quantity sold (10 -> 7)', afterSale.body?.product?.stock === 7, `got ${afterSale.body?.product?.stock}`);
+  check('Stock decreased by exactly the quantity sold (1260 -> 1257)', afterSale.body?.product?.stock === 1257, `got ${afterSale.body?.product?.stock}`);
+  check('Selling stock does not add a new batch (still 3)', afterSale.body?.product?.batches?.length === 3, `got ${afterSale.body?.product?.batches?.length}`);
 
   // 10. dashboard should reflect today's revenue
   const dash = await req('GET', '/dashboard', null, token);

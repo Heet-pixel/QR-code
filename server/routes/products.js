@@ -25,13 +25,14 @@ router.post('/', async (req, res, next) => {
     } while (clash && attempts < 5);
 
     const qrDataUrl = await makeQrDataUrl(productId);
+    const initialStock = stock || 0;
 
     const product = await Product.create({
       userId: req.userId,
       productId,
       name: name.trim(),
       price: price || 0,
-      stock: stock || 0,
+      stock: initialStock,
       category,
       gst: gst || 0,
       description,
@@ -40,6 +41,8 @@ router.post('/', async (req, res, next) => {
       unit,
       lowStockThreshold,
       qrDataUrl,
+      // whatever stock the product launches with is Batch 1
+      batches: initialStock > 0 ? [{ batchNumber: 1, quantity: initialStock, addedAt: new Date() }] : [],
     });
 
     res.status(201).json({ product });
@@ -116,6 +119,36 @@ router.delete('/:id', async (req, res, next) => {
     const product = await Product.findOneAndDelete({ _id: req.params.id, userId: req.userId });
     if (!product) return res.status(404).json({ message: 'Product not found' });
     res.json({ message: 'Product deleted' });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Adds new stock as a new numbered batch (Batch 1 is set at creation time
+// above; this covers every restock after that - Batch 2, Batch 3, ...).
+// Selling stock through a sale never touches batches, only this does.
+router.post('/:id/restock', async (req, res, next) => {
+  try {
+    const quantity = Number(req.body.quantity);
+    if (!quantity || quantity < 1 || !Number.isFinite(quantity)) {
+      return res.status(400).json({ message: 'Enter a quantity of at least 1' });
+    }
+
+    const existing = await Product.findOne({ _id: req.params.id, userId: req.userId });
+    if (!existing) return res.status(404).json({ message: 'Product not found' });
+
+    const nextBatchNumber = existing.batches.length > 0 ? Math.max(...existing.batches.map((b) => b.batchNumber)) + 1 : 1;
+
+    const product = await Product.findOneAndUpdate(
+      { _id: req.params.id, userId: req.userId },
+      {
+        $inc: { stock: quantity },
+        $push: { batches: { batchNumber: nextBatchNumber, quantity, addedAt: new Date() } },
+      },
+      { new: true }
+    );
+
+    res.json({ product });
   } catch (err) {
     next(err);
   }

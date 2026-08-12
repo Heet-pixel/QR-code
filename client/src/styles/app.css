@@ -62,31 +62,150 @@
   cursor: pointer;
   text-align: left;
   font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.app-col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
+/* app bar - sticky at the top on every screen size, native-app style */
+.appbar {
+  position: sticky;
+  top: 0;
+  z-index: 15;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: var(--appbar-h);
+  padding: var(--safe-top) 6px 0 6px;
+  background: rgba(247, 248, 245, 0.92);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--line);
+}
+
+.appbar-brand {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 16px;
+  padding: 0 4px 0 8px;
+  white-space: nowrap;
+}
+
+.appbar-brand span {
+  color: var(--mint-dark);
+}
+
+.appbar-back {
+  width: var(--tap);
+  height: var(--tap);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: var(--ink);
+  cursor: pointer;
+  border-radius: 999px;
+}
+
+.appbar-back:active {
+  background: #eef0ea;
+}
+
+.appbar-title {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 16px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.appbar-account {
+  position: relative;
+  margin-right: 6px;
+}
+
+.avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: #fff;
+  border: none;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.account-menu {
+  position: absolute;
+  top: 44px;
+  right: 0;
+  min-width: 200px;
+  background: var(--paper-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lift);
+  padding: 12px 14px;
+  z-index: 30;
+}
+
+.account-menu-name {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.account-menu-email {
+  font-size: 12px;
+  color: var(--slate);
+  margin-bottom: 10px;
+}
+
+.account-menu button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #fdeceb;
+  color: var(--danger);
+  border: none;
+  border-radius: 8px;
+  padding: 9px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
 }
 
 .main {
   flex: 1;
   min-width: 0;
-  padding: 28px 32px 100px;
+  padding: 18px 32px 48px;
 }
 
-.topbar {
+/* leftover per-page action rows that sit under the app bar (e.g. Edit / Delete) */
+.page-actions {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 22px;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-bottom: 14px;
 }
 
-.topbar h1 {
-  font-size: 22px;
-}
-
-.topbar .shop {
-  font-size: 13px;
-  color: var(--slate);
-}
-
-/* bottom tab bar - mobile only */
+/* bottom tab bar - mobile only, with an elevated center Scan action */
 .tabbar {
   display: none;
 }
@@ -95,35 +214,75 @@
   .sidebar {
     display: none;
   }
+
   .main {
-    padding: 18px 16px 92px;
+    padding: 14px 14px calc(24px + var(--tabbar-h) + var(--safe-bottom));
   }
+
+  .appbar-brand {
+    display: none; /* the tab bar already anchors identity on mobile - keep the bar lean */
+  }
+
   .tabbar {
     display: flex;
     position: fixed;
     bottom: 0;
     left: 0;
     right: 0;
+    height: calc(var(--tabbar-h) + var(--safe-bottom));
     background: var(--paper-raised);
     border-top: 1px solid var(--line);
     justify-content: space-around;
-    padding: 6px 2px calc(env(safe-area-inset-bottom, 0px) + 4px);
+    align-items: flex-start;
+    padding: 6px 4px var(--safe-bottom);
     z-index: 20;
   }
+
   .tabbar a {
     text-decoration: none;
     color: var(--slate);
-    font-size: 10px;
+    font-size: 10.5px;
+    font-weight: 600;
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: center;
     gap: 3px;
-    padding: 6px 8px;
-    border-radius: 8px;
-    flex: 1;
+    width: var(--tap);
+    height: var(--tap);
+    border-radius: 12px;
   }
+
   .tabbar a.active {
     color: var(--mint-dark);
+  }
+
+  .tabbar a.active svg {
+    fill: rgba(15, 163, 127, 0.14);
+  }
+
+  /* the elevated center Scan button - the app's primary action, always in thumb reach */
+  .tab-fab-wrap {
+    width: auto !important;
+    height: auto !important;
+    margin-top: -26px;
+  }
+
+  .tab-fab {
+    width: 54px;
+    height: 54px;
+    border-radius: 999px;
+    background: var(--mint);
+    color: #06231c;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 10px 20px rgba(15, 163, 127, 0.35), 0 0 0 5px var(--paper-raised);
+  }
+
+  .tab-fab-wrap.active .tab-fab {
+    background: var(--mint-dark);
+    color: #fff;
   }
 }
 
@@ -173,10 +332,11 @@
 
 button.btn {
   border: none;
-  border-radius: 8px;
-  padding: 10px 16px;
+  border-radius: 10px;
+  padding: 12px 18px;
+  min-height: var(--tap);
   font-weight: 600;
-  font-size: 14px;
+  font-size: 14.5px;
   cursor: pointer;
   transition: transform 0.05s ease;
 }
@@ -236,9 +396,8 @@ button.btn:active {
 .field select,
 .field textarea {
   border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 10px 12px;
-  font-size: 14px;
+  border-radius: 10px;
+  padding: 12px 14px;
   font-family: inherit;
   background: var(--paper-raised);
   color: var(--ink);
@@ -473,6 +632,13 @@ button.btn:active {
   top: 20px;
 }
 
+@media (max-width: 860px) {
+  .cart {
+    position: static;
+    padding-bottom: 170px;
+  }
+}
+
 .cart-line {
   display: flex;
   align-items: center;
@@ -508,10 +674,10 @@ button.btn:active {
 .qty-stepper button {
   border: none;
   background: var(--paper);
-  width: 26px;
-  height: 26px;
+  width: 34px;
+  height: 34px;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .qty-stepper span {
@@ -559,4 +725,271 @@ button.btn:active {
   font-size: 20px;
   font-weight: 700;
   color: var(--mint-dark);
+}
+
+/* ---------- responsive split helpers (replace fixed-width inline grids) ---------- */
+.dash-split,
+.detail-split,
+.scan-split {
+  align-items: start;
+}
+
+.dash-split {
+  grid-template-columns: 2fr 1fr;
+}
+
+.detail-split {
+  grid-template-columns: 1fr 300px;
+}
+
+.scan-split {
+  grid-template-columns: 360px 1fr;
+}
+
+@media (max-width: 860px) {
+  .dash-split,
+  .detail-split,
+  .scan-split {
+    grid-template-columns: 1fr;
+  }
+}
+
+.spec-list {
+  display: grid;
+  grid-template-columns: 130px 1fr;
+  row-gap: 10px;
+  font-size: 14px;
+}
+
+/* ---------- search bar ---------- */
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--paper-raised);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0 14px;
+  margin-bottom: 14px;
+  height: 44px;
+  color: var(--slate);
+}
+
+.search-bar input {
+  border: none;
+  background: none;
+  flex: 1;
+  height: 100%;
+  color: var(--ink);
+  padding: 0;
+}
+
+.search-bar input:focus {
+  outline: none;
+}
+
+/* ---------- row list (Products, low-stock) - the primary mobile list pattern ---------- */
+.row-list {
+  background: var(--paper-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.row-list.flush {
+  border: none;
+  border-radius: 0;
+  background: none;
+}
+
+.row-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  min-height: 64px;
+  text-decoration: none;
+  color: inherit;
+  border-bottom: 1px solid #eef0ea;
+  background: var(--paper-raised);
+}
+
+.row-list a.row-item:active,
+.row-list button.row-item:active {
+  background: #f2f4ee;
+}
+
+.row-item:last-child {
+  border-bottom: none;
+}
+
+.row-thumb {
+  width: 44px;
+  height: 44px;
+  border-radius: 9px;
+  border: 1px solid var(--line);
+  background: #fff;
+  flex-shrink: 0;
+  image-rendering: pixelated;
+}
+
+.row-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.row-title {
+  font-weight: 600;
+  font-size: 14.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.row-sub {
+  font-size: 12px;
+  color: var(--slate);
+  margin-top: 1px;
+}
+
+.row-end {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.row-price {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.row-chevron {
+  color: var(--slate);
+  flex-shrink: 0;
+}
+
+/* ---------- floating action button ---------- */
+.page-with-fab {
+  position: relative;
+  min-height: calc(100dvh - var(--appbar-h) - var(--tabbar-h) - 120px);
+}
+
+.fab {
+  position: fixed;
+  right: 20px;
+  bottom: calc(24px + var(--tabbar-h) + var(--safe-bottom));
+  width: 56px;
+  height: 56px;
+  border-radius: 999px;
+  background: var(--mint);
+  color: #06231c;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-lift);
+  text-decoration: none;
+  z-index: 10;
+}
+
+.fab:active {
+  background: var(--mint-dark);
+  color: #fff;
+}
+
+@media (min-width: 861px) {
+  .fab {
+    bottom: 32px;
+    right: 32px;
+  }
+}
+
+/* ---------- sales list ---------- */
+.sale-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sale-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  background: var(--paper-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px;
+  cursor: pointer;
+  min-height: var(--tap);
+}
+
+.sale-card:active {
+  background: #f2f4ee;
+}
+
+.sale-card-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: #e5f6f0;
+  color: var(--mint-dark);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.sale-card-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.sale-card-top {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+.sale-card-total {
+  font-family: var(--font-display);
+}
+
+.sale-card-meta {
+  font-size: 12px;
+  color: var(--slate);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---------- checkout footer (Billing) ---------- */
+.checkout-footer {
+  margin-top: 6px;
+}
+
+.checkout-totals {
+  margin-bottom: 8px;
+}
+
+@media (max-width: 860px) {
+  .checkout-footer {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: calc(var(--tabbar-h) + var(--safe-bottom));
+    background: var(--paper-raised);
+    border-top: 1px solid var(--line);
+    padding: 12px 14px calc(10px + var(--safe-bottom, 0px));
+    box-shadow: 0 -6px 20px rgba(18, 33, 58, 0.08);
+    z-index: 15;
+  }
+
+  .checkout-clear {
+    display: none; /* keep the mobile footer lean - clearing is still available via each line's remove button */
+  }
 }

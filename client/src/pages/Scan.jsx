@@ -55,9 +55,7 @@ export default function Scan() {
 
   return (
     <div>
-      <h1 style={{ marginBottom: 18 }}>Scan product</h1>
-
-      <div className="grid" style={{ gridTemplateColumns: '360px 1fr', alignItems: 'start' }}>
+      <div className="grid scan-split">
         <div className="card">
           <div id="qr-reader" style={{ width: '100%', minHeight: running ? 'auto' : 0 }} />
           {!running ? (

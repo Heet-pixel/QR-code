@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import api, { openPdf } from '../api';
+import { usePageTitle } from '../context/PageTitleContext.jsx';
 
 const FIELDS = [
   ['name', 'Product name', 'text'],
@@ -22,6 +23,8 @@ export default function ProductDetail() {
   const [copies, setCopies] = useState(10);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [restockQty, setRestockQty] = useState('');
+  const [restocking, setRestocking] = useState(false);
 
   useEffect(() => {
     api.get(`/products/${id}`).then((res) => {
@@ -44,33 +47,52 @@ export default function ProductDetail() {
     }
   }
 
+  async function addBatch() {
+    const quantity = Number(restockQty);
+    if (!quantity || quantity < 1) {
+      setError('Enter a quantity of at least 1');
+      return;
+    }
+    setRestocking(true);
+    setError('');
+    try {
+      const res = await api.post(`/products/${id}/restock`, { quantity });
+      setProduct(res.data.product);
+      setForm(res.data.product);
+      setRestockQty('');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Could not add stock');
+    } finally {
+      setRestocking(false);
+    }
+  }
+
   async function remove() {
     if (!confirm(`Delete ${product.name}? This cannot be undone.`)) return;
     await api.delete(`/products/${id}`);
     navigate('/products');
   }
 
+  usePageTitle(product?.name);
+
   if (!product) return <p>Loading...</p>;
 
   return (
     <div>
-      <div className="topbar">
-        <h1>{product.name}</h1>
-        <div style={{ display: 'flex', gap: 8 }}>
-          {!editing && (
-            <button className="btn btn-ghost" onClick={() => setEditing(true)}>
-              Edit
-            </button>
-          )}
-          <button className="btn btn-danger" onClick={remove}>
-            Delete
+      <div className="page-actions">
+        {!editing && (
+          <button className="btn btn-ghost" onClick={() => setEditing(true)}>
+            Edit
           </button>
-        </div>
+        )}
+        <button className="btn btn-danger" onClick={remove}>
+          Delete
+        </button>
       </div>
 
       {error && <div className="error-banner">{error}</div>}
 
-      <div className="grid" style={{ gridTemplateColumns: '1fr 300px', alignItems: 'start' }}>
+      <div className="grid detail-split">
         <div className="card">
           {editing ? (
             <>
@@ -113,7 +135,7 @@ export default function ProductDetail() {
               </p>
             </>
           ) : (
-            <dl style={{ display: 'grid', gridTemplateColumns: '160px 1fr', rowGap: 10 }}>
+            <dl className="spec-list">
               <dt style={{ color: 'var(--slate)' }}>Product ID</dt>
               <dd className="mono">{product.productId}</dd>
               <dt style={{ color: 'var(--slate)' }}>Price</dt>
@@ -121,6 +143,9 @@ export default function ProductDetail() {
               <dt style={{ color: 'var(--slate)' }}>Stock</dt>
               <dd>
                 {product.stock} {product.unit}
+                {product.batches?.length > 0 && (
+                  <span style={{ color: 'var(--slate)', fontSize: 12 }}> &middot; Batch {product.batches[product.batches.length - 1].batchNumber}</span>
+                )}
               </dd>
               <dt style={{ color: 'var(--slate)' }}>Category</dt>
               <dd>{product.category || '-'}</dd>
@@ -147,11 +172,56 @@ export default function ProductDetail() {
           </div>
           <button
             className="btn btn-primary btn-block"
-            onClick={() => openPdf(`/products/${id}/qr-pdf?copies=${copies}`)}
+            onClick={() => openPdf(`/products/${id}/qr-pdf?copies=${copies}`, `${product.productId}-labels.pdf`)}
           >
             Generate QR PDF
           </button>
         </div>
+      </div>
+
+      <div className="card" style={{ marginTop: 16 }}>
+        <h3 style={{ marginBottom: 4 }}>Stock batches</h3>
+        <p className="hint" style={{ marginBottom: 14 }}>
+          Every time you add stock, it's recorded as its own numbered batch - selling stock never changes this history.
+        </p>
+
+        <div className="field-row" style={{ alignItems: 'flex-end' }}>
+          <div className="field" style={{ marginBottom: 0 }}>
+            <label htmlFor="restockQty">Add stock quantity</label>
+            <input
+              id="restockQty"
+              type="number"
+              min={1}
+              inputMode="numeric"
+              placeholder="e.g. 1000"
+              value={restockQty}
+              onChange={(e) => setRestockQty(e.target.value)}
+            />
+          </div>
+          <button className="btn btn-primary" style={{ marginBottom: 14 }} onClick={addBatch} disabled={restocking}>
+            {restocking ? 'Adding...' : `Add as Batch ${(product.batches?.length || 0) + 1}`}
+          </button>
+        </div>
+
+        {product.batches?.length > 0 ? (
+          <div className="row-list flush" style={{ marginTop: 4 }}>
+            {[...product.batches]
+              .sort((a, b) => b.batchNumber - a.batchNumber)
+              .map((b) => (
+                <div className="row-item" key={b.batchNumber}>
+                  <div className="row-body">
+                    <div className="row-title">Batch {b.batchNumber}</div>
+                    <div className="row-sub">{new Date(b.addedAt).toLocaleString()}</div>
+                  </div>
+                  <div className="row-end">
+                    <div className="row-price">+{b.quantity}</div>
+                  </div>
+                </div>
+              ))}
+          </div>
+        ) : (
+          <p style={{ color: 'var(--slate)', fontSize: 13 }}>No batches recorded yet.</p>
+        )}
       </div>
     </div>
   );
